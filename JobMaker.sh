@@ -12,7 +12,7 @@ mkdir '/scratch/mcampana/job_files/execs/'
 mkdir '/scratch/mcampana/job_files/subs/'
 mkdir '/scratch/mcampana/job_files/dags/'
 
-gammas=(1.5 1.75 2.0 2.25 2.5 2.75 3.0 3.25 3.5)
+gammas=(1.75 2.0 2.25 2.5 2.75 3.0 3.25)
 weights=('equal' 'flux')
 
 dag_path="/scratch/mcampana/job_files/dags/Dagman_$1_weights_gammas.dag"
@@ -20,14 +20,14 @@ touch ${dag_path}
 
 
 if [ $1 == 'trials' ]; then
-    COUNTER=(0 1 2 3 4 5 6 7 8 9)
+    COUNTER=({1..100..1})
     for w in ${weights[@]}; do
         for g in ${gammas[@]}; do
             for c in ${COUNTER[@]}; do
                 exec_path="/scratch/mcampana/job_files/execs/Do_$1_${w}weight_gamma${g}_seed${c}.sh"
                 touch ${exec_path}
                 echo "#!/bin/sh" >> ${exec_path}
-                echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${w} -g ${g} -n 1000 -c --seed ${c}" >> ${exec_path}
+                echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${w} -g ${g} -n 100 --cpus 1 -c --seed ${c}" >> ${exec_path}
     
                 sub_path="/scratch/mcampana/job_files/subs/Submit_$1_${w}weight_gamma${g}_seed${c}.submit"
                 touch ${sub_path}
@@ -66,7 +66,7 @@ if [ $1 == 'sensdisc' ]; then
     echo "universe = vanilla" >> ${sub_path}
     echo "notifications = never" >> ${sub_path}
     echo "should_transfer_files = YES" >> ${sub_path}
-    echo "request_memory = 8000" >> ${sub_path}
+    echo "request_memory = 10000" >> ${sub_path}
     echo "queue 1" >> ${sub_path}
 
     echo "JOB $1 ${sub_path}" >> ${dag_path}  
