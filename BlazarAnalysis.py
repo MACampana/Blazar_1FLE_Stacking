@@ -112,7 +112,7 @@ print('Considering plotting flux pdf...')
 if plot_flux_pdf:
     plt.figure(figsize=(6,4))
     plt.hist(data['EF30-100'], bins='auto', histtype='step', linewidth=2)
-    plt.xlabel("Energy Flux from 30-100 MeV")
+    plt.xlabel("Energy Flux from 30-100 MeV [erg /cm^2 /s]")
     plt.ylabel("Counts")
     plt.title("Energy Flux PDF for 1FLE Blazars")
     #plt.semilogy()
@@ -129,7 +129,9 @@ print('Getting analysis arrays...')
 #Create analysis with data selection (saved in working dir)
 #ana = cy.get_analysis(cy.selections.repo, selection)
 #ana.save('./')
-ana = cy.get_analysis(cy.selections.repo, selection, dir='/data/user/mcampana/analysis/Blazar_1FLE')
+ana_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/subanalyses')
+#ana_repo = cy.selections.Repository(ana_dir)
+ana = cy.get_analysis(cy.selections.repo, selection, dir=ana_dir)
 #ana = cy.get_analysis(cy.selections.repo, cy.selections.PSDataSpecs.ps_2011, dir='/data/user/mcampana/analysis/Blazar_1FLE')
 
 #Trial save and load directories
@@ -176,12 +178,12 @@ def TSchi2():
     x = h.centers[0]
     norm = h.integrate().values
     ax.semilogy(x, norm * b.pdf(x), lw=1, ls='--',
-                label='Chi2 fit: {} dof, eta={}'.format(np.round(b.ndof,2), np.round(b.eta,2)))
+                label='Chi2 fit: {} dof, eta={}'.format(np.round(b.ndof,3), np.round(b.eta,3)))
 
     ax.set_xlabel('TS')
     ax.set_ylabel('number of trials')
     ax.legend()
-    ax.set_title('{} Weighted, Gamma={}'.format(w,g))
+    ax.set_title('{} Weighted, Gamma={}'.format(w.capitalize(),g))
     ax.text(10, 5e2, 'gamma={}'.format(g), ha='right', va='center')
     plt.tight_layout()
     plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}trials_{}weighting_gamma{}_10yrPStracks_1FLEblazars_{}.png'.format(b.n_total, w, g, today_date))
@@ -299,8 +301,18 @@ def plot_sensdisc():
 
 #Doing Bias tests:
 def bias_test():
-    n_sigs = np.r_[:101:10]
-    trials = [tr.get_many_fits(100, n_sig=n_sig, logging=False, seed=n_sig) for n_sig in n_sigs]
+    #Making new trials...
+    #n_sigs = np.r_[:101:10]
+    #trials = [tr.get_many_fits(100, n_sig=n_sig, logging=False, seed=n_sig) for n_sig in n_sigs]
+    
+    #Using loaded trials
+    n_sigs = list(cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig').keys())
+    n_sigs.sort()
+    trials = [cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig', n_sig) for n_sig in n_sigs]
+    b = cy.bk.get_best(bg_chi2, 'weight', w, 'gamma', g)
+    trials.insert(0, b.trials)
+    n_sigs.insert(0,0)
+        
     for (n_sig, t) in zip(n_sigs, trials):
         t['ntrue'] = np.repeat(n_sig, len(t))
 
@@ -312,7 +324,7 @@ def bias_test():
     ns_bins = np.r_[n_sigs - 0.5*dns, n_sigs[-1] + 0.5*dns]
     expect_kw = dict(color='C0', ls='--', lw=1, zorder=-10)
     expect_gamma = tr.sig_injs[0].flux[0].gamma
-
+    
     ax = axs[0]
     h = hl.hist((allt.ntrue, allt.ns), bins=(ns_bins, 100))
     hl.plot1d(ax, h.contain_project(1),errorbands=True, drawstyle='default')
@@ -344,11 +356,13 @@ def bias_test():
 #=========================================================
 
 if do_trials:
+    
     for w in weighting_scheme:
         if w == 'equal':
             src_weights = np.ones(num_blaz) / num_blaz
         elif w == 'flux':
-            src_weights = np.copy(data['EF30-100'])
+            flux_data = np.copy(data['EF30-100'])
+            src_weights = flux_data / np.sum(flux_data)
             
         srcs = cy.utils.Sources(ra=data['RAdeg'], dec=data['DEdeg'], deg=True, weight=src_weights)
         
@@ -360,65 +374,82 @@ if do_trials:
                 #print('Doing {} BG trials for {} weight, gamma = {}, seed = {} ...'.format(num_trials,w,g,s))
                 #bg_trials()  
                 
-                if g == 1.75: 
-                    n_sigs = np.r_[2:10.1:2, 14:22.1:4] #5, 3
-                elif g == 2.0: 
-                    n_sigs = np.r_[10:30.1:4, 30:100.1:7] #6, 11
-                elif g == 2.25: 
-                    n_sigs = np.r_[20:40.1:4] #6
-                elif g == 2.5: 
-                    n_sigs = np.r_[45:65.1:4] #6
-                elif g == 2.75: 
-                    n_sigs = np.r_[75:100.1:5] #6
-                elif g == 3.0:
-                    n_sigs = np.r_[100:160.1:6] #11
-                elif g == 3.25:
-                    n_sigs = np.r_[140:220.1:8] #11
+                if w == 'equal':
+                    if g == 1.75: 
+                        n_sigs = np.r_[2:22.1:2] 
+                    elif g == 2.0: 
+                        n_sigs = np.r_[2:42.1:4, 60:100.1:4] 
+                    elif g == 2.25: 
+                        n_sigs = np.r_[10:50.1:4] 
+                    elif g == 2.5: 
+                        n_sigs = np.r_[40:80.1:4] 
+                    elif g == 2.75: 
+                        n_sigs = np.r_[70:110.1:4] 
+                    elif g == 3.0:
+                        n_sigs = np.r_[110:150.1:4] 
+                    elif g == 3.25:
+                        n_sigs = np.r_[160:200.1:4] 
+                        
+                elif w == 'flux':
+                    if g == 1.75: 
+                        n_sigs = np.r_[2:22.1:2] 
+                    elif g == 2.0: 
+                        n_sigs = np.r_[4:24.1:2, 40:80.1:4] 
+                    elif g == 2.25: 
+                        n_sigs = np.r_[2:42.1:4] 
+                    elif g == 2.5: 
+                        n_sigs = np.r_[20:60.1:4] 
+                    elif g == 2.75: 
+                        n_sigs = np.r_[40:80.1:4] 
+                    elif g == 3.0:
+                        n_sigs = np.r_[70:110.1:4]
+                    elif g == 3.25:
+                        n_sigs = np.r_[100:140.1:4] 
                     
                 for n_sig in n_sigs:
                     print('Doing {} Signal trials for {} weight, gamma = {}, seed = {}, n_sig = {} ...'.format(num_trials/2,w,g,s,n_sig))
                     sig_trials()
                     
 elif load_trials:
-    print('Loading all BG Trials ...')
-    bg_chi2 = cy.bk.get_all(
-        # disk location
-        bg_dir,
-        # filename pattern
-        'BG*.npy',
-        # how to combine items within each directory
-        merge=np.concatenate,
-        # what to do with items after merge
-        post_convert=ndarray_to_Chi2TSD)
     
-    print('Loading all SIG Trials ...')
-    sig = cy.bk.get_all(
-        # disk location
-        sig_dir,
-        # filename pattern
-        'SIG*.npy',
-        # how to combine items within each directory
-        merge=np.concatenate,
-        # what to do with items after merge
-        post_convert=cy.utils.Arrays)
+    #print('Loading all BG Trials ...')
+    #bg_chi2 = cy.bk.get_all(
+    #    # disk location
+    #    bg_dir,
+    #    # filename pattern
+    #    'BG*.npy',
+    #    # how to combine items within each directory
+    #    merge=np.concatenate,
+    #    # what to do with items after merge
+    #    post_convert=ndarray_to_Chi2TSD)
+    
+    #print('Loading all SIG Trials ...')
+    #sig = cy.bk.get_all(
+    #    # disk location
+    #    sig_dir,
+    #    # filename pattern
+    #    'SIG*.npy',
+    #    # how to combine items within each directory
+    #    merge=np.concatenate,
+    #    # what to do with items after merge
+    #    post_convert=cy.utils.Arrays)
             
     if do_find_sensdisc:
         for w in weighting_scheme:
             if w == 'equal':
                 src_weights = np.ones(num_blaz) / num_blaz
             elif w == 'flux':
-                src_weights = np.copy(data['EF30-100'])
+                flux_data = np.copy(data['EF30-100'])
+                src_weights = flux_data / np.sum(flux_data)
             
             srcs = cy.utils.Sources(ra=data['RAdeg'], dec=data['DEdeg'], deg=True, weight=src_weights)
             
-            fluxes_sens = []
-            fluxes_disc = []
+            #fluxes_sens = []
+            #fluxes_disc = []
             
             for g in gamma:
                 
-                
-                
-                print('Calculating Sensitivity and Discovery Potential for: {} Weighting and Gamma={} ...'.format(w,g))
+                print('Calculating Sensitivity for: {} Weighting and Gamma={} ...'.format(w,g))
                 tr = cy.get_trial_runner(src=srcs, ana=ana, flux=cy.hyp.PowerLawFlux(g), mp_cpus=cpus)
                 
                 f_sens = get_n_sig(beta=0.9, nsigma=None)
@@ -430,34 +461,38 @@ elif load_trials:
                     f_disc = get_n_sig(beta=0.5, nsigma=5)
                     print('')
                     print('Discovery Potential Flux: ', f_disc)
-                    fluxes_disc.append(f_disc)
-                    
-                    if plot_TSchi2:
-                        print('Plotting TS distribution with Chi2 fit for BG trials with {} weighting and gamma = {} ...'.format(w,g))
-                        TSchi2()
+                    #fluxes_disc.append(f_disc)
 
-                fluxes_sens.append(f_sens)
+                #fluxes_sens.append(f_sens)
                 print('')
                 
-            plot_sensdisc()
-                       
-elif do_bias_test:
-    for w in weighting_scheme:
-        if w == 'equal':
-            src_weights = np.ones(num_blaz) / num_blaz
-        elif w == 'flux':
-            src_weights = np.copy(data['EF30-100'])
-            
-        srcs = cy.utils.Sources(ra=data['RAdeg'], dec=data['DEdeg'], deg=True, weight=src_weights)
+            #plot_sensdisc()
+    
+    if plot_TSchi2:
+        for w in weighting_scheme:
+            g = 2.0
+            print('Plotting TS distribution with Chi2 fit for BG trials with {} weighting and gamma = {} ...'.format(w,g))
+            TSchi2()
         
-        for g in gamma:
-            print('Plotting bias tests for {} weighting and gamma={}'.format(w,g))
-            tr = cy.get_trial_runner(src=srcs, ana=ana, flux=cy.hyp.PowerLawFlux(g), mp_cpus=cpus)
-            bias_test()
+    if do_bias_test:
+
+        for w in weighting_scheme:
+            if w == 'equal':
+                src_weights = np.ones(num_blaz) / num_blaz
+            elif w == 'flux':
+                flux_data = np.copy(data['EF30-100'])
+                src_weights = flux_data / np.sum(flux_data)
+
+            srcs = cy.utils.Sources(ra=data['RAdeg'], dec=data['DEdeg'], deg=True, weight=src_weights)          
+
+            for g in gamma:
+                print('Plotting bias tests for {} weighting and gamma={}'.format(w,g))
+                tr = cy.get_trial_runner(src=srcs, ana=ana, flux=cy.hyp.PowerLawFlux(g), mp_cpus=cpus, update_bg=True)
+                bias_test()
 
 
 else:
-    raise ValueError('No tasks given in arguments...')
+    raise ValueError('No trials given or loaded in arguments...')
 
 
 print('===========================')

@@ -54,7 +54,7 @@ if [ $1 == 'sensdisc' ]; then
     exec_path="/scratch/mcampana/job_files/execs/Do_$1.sh"
     touch ${exec_path}
     echo "#!/bin/sh" >> ${exec_path}
-    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g ${gammas[@]} -l -s -i " >> ${exec_path}
+    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g ${gammas[@]} -l -s" >> ${exec_path}
 
     sub_path="/scratch/mcampana/job_files/subs/Submit_$1_.submit"
     touch ${sub_path}
@@ -77,7 +77,7 @@ if [ $1 == 'bias' ]; then
     exec_path="/scratch/mcampana/job_files/execs/Do_$1.sh"
     touch ${exec_path}
     echo "#!/bin/sh" >> ${exec_path}
-    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g ${gammas[@]} -b " >> ${exec_path}
+    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w equal -g 2.0 -l -b " >> ${exec_path}
 
     sub_path="/scratch/mcampana/job_files/subs/Submit_$1_.submit"
     touch ${sub_path}
@@ -89,7 +89,7 @@ if [ $1 == 'bias' ]; then
     echo "universe = vanilla" >> ${sub_path}
     echo "notifications = never" >> ${sub_path}
     echo "should_transfer_files = YES" >> ${sub_path}
-    echo "request_memory = 8000" >> ${sub_path}
+    echo "request_memory = 10000" >> ${sub_path}
     echo "queue 1" >> ${sub_path}
 
     echo "JOB $1 ${sub_path}" >> ${dag_path}  
