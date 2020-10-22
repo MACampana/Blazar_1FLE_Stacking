@@ -74,26 +74,30 @@ if [ $1 == 'sensdisc' ]; then
 fi
 
 if [ $1 == 'bias' ]; then
-    exec_path="/scratch/mcampana/job_files/execs/Do_$1.sh"
-    touch ${exec_path}
-    echo "#!/bin/sh" >> ${exec_path}
-    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w equal -g 2.0 -l -b " >> ${exec_path}
+    for w in ${weights[@]}; do
+        for g in ${gammas[@]}; do
+            exec_path="/scratch/mcampana/job_files/execs/Do_$1_${w}_${g}.sh"
+            touch ${exec_path}
+            echo "#!/bin/sh" >> ${exec_path}
+            echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${w} -g ${g} -l -b " >> ${exec_path}
 
-    sub_path="/scratch/mcampana/job_files/subs/Submit_$1_.submit"
-    touch ${sub_path}
-    echo "executable = ${exec_path}" >> ${sub_path}
-    echo "output = /scratch/mcampana/outputs/$1_.out" >> ${sub_path}
-    echo "error = /scratch/mcampana/errors/$1_.err" >> ${sub_path}
-    echo "log = /scratch/mcampana/logs/$1_.log" >> ${sub_path}        
-    echo "getenv = true" >> ${sub_path}
-    echo "universe = vanilla" >> ${sub_path}
-    echo "notifications = never" >> ${sub_path}
-    echo "should_transfer_files = YES" >> ${sub_path}
-    echo "request_memory = 10000" >> ${sub_path}
-    echo "queue 1" >> ${sub_path}
+            sub_path="/scratch/mcampana/job_files/subs/Submit_$1_${w}_${g}.submit"
+            touch ${sub_path}
+            echo "executable = ${exec_path}" >> ${sub_path}
+            echo "output = /scratch/mcampana/outputs/$1_.out" >> ${sub_path}
+            echo "error = /scratch/mcampana/errors/$1_.err" >> ${sub_path}
+            echo "log = /scratch/mcampana/logs/$1_.log" >> ${sub_path}        
+            echo "getenv = true" >> ${sub_path}
+            echo "universe = vanilla" >> ${sub_path}
+            echo "notifications = never" >> ${sub_path}
+            echo "should_transfer_files = YES" >> ${sub_path}
+            echo "request_memory = 8000" >> ${sub_path}
+            echo "queue 1" >> ${sub_path}
 
-    echo "JOB $1 ${sub_path}" >> ${dag_path}  
+            echo "JOB $1 ${sub_path}" >> ${dag_path}  
         
+        done
+    done        
 fi
 
 runThis="/scratch/mcampana/job_files/SubmitMyJobs.sh"

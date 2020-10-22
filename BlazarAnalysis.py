@@ -183,10 +183,10 @@ def TSchi2():
     ax.set_xlabel('TS')
     ax.set_ylabel('number of trials')
     ax.legend()
-    ax.set_title('{} Weighted, Gamma={}'.format(w.capitalize(),g))
-    ax.text(10, 5e2, 'gamma={}'.format(g), ha='right', va='center')
+    ax.set_title('{} Weighted'.format(w.capitalize()))
+
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}trials_{}weighting_gamma{}_10yrPStracks_1FLEblazars_{}.png'.format(b.n_total, w, g, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}trials_{}weighting_10yrPStracks_1FLEblazars_{}.png'.format(b.n_total, w, today_date))
     plt.close()
     
     return
@@ -302,16 +302,16 @@ def plot_sensdisc():
 #Doing Bias tests:
 def bias_test():
     #Making new trials...
-    #n_sigs = np.r_[:101:10]
-    #trials = [tr.get_many_fits(100, n_sig=n_sig, logging=False, seed=n_sig) for n_sig in n_sigs]
+    n_sigs = np.r_[:201:20]
+    trials = [tr.get_many_fits(100, n_sig=n_sig, logging=False, seed=n_sig) for n_sig in n_sigs]
     
     #Using loaded trials
-    n_sigs = list(cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig').keys())
-    n_sigs.sort()
-    trials = [cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig', n_sig) for n_sig in n_sigs]
-    b = cy.bk.get_best(bg_chi2, 'weight', w, 'gamma', g)
-    trials.insert(0, b.trials)
-    n_sigs.insert(0,0)
+    #n_sigs = list(cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig').keys())
+    #n_sigs.sort()
+    #trials = [cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig', n_sig) for n_sig in n_sigs]
+    #b = cy.bk.get_best(bg_chi2, 'weight', w, 'gamma', g)
+    #trials.insert(0, b.trials)
+    #n_sigs.insert(0,0)
         
     for (n_sig, t) in zip(n_sigs, trials):
         t['ntrue'] = np.repeat(n_sig, len(t))
@@ -347,6 +347,7 @@ def bias_test():
     axs[0].set_ylabel('n_s')
     axs[1].set_ylabel('gamma')
 
+    plt.title('Gamma={}, {} Weighted'.format(g,w.capitalize()))
     plt.tight_layout()
     plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/BiasTest_{}weighting_gamma{}_10yrPStracks_1FLEblazars_{}.png'.format(w, g, today_date))
     plt.close()
@@ -412,27 +413,27 @@ if do_trials:
                     
 elif load_trials:
     
-    #print('Loading all BG Trials ...')
-    #bg_chi2 = cy.bk.get_all(
-    #    # disk location
-    #    bg_dir,
-    #    # filename pattern
-    #    'BG*.npy',
-    #    # how to combine items within each directory
-    #    merge=np.concatenate,
-    #    # what to do with items after merge
-    #    post_convert=ndarray_to_Chi2TSD)
+    print('Loading all BG Trials ...')
+    bg_chi2 = cy.bk.get_all(
+        # disk location
+        bg_dir,
+        # filename pattern
+        'BG*.npy',
+        # how to combine items within each directory
+        merge=np.concatenate,
+        # what to do with items after merge
+        post_convert=ndarray_to_Chi2TSD)
     
-    #print('Loading all SIG Trials ...')
-    #sig = cy.bk.get_all(
-    #    # disk location
-    #    sig_dir,
-    #    # filename pattern
-    #    'SIG*.npy',
-    #    # how to combine items within each directory
-    #    merge=np.concatenate,
-    #    # what to do with items after merge
-    #    post_convert=cy.utils.Arrays)
+    print('Loading all SIG Trials ...')
+    sig = cy.bk.get_all(
+        # disk location
+        sig_dir,
+        # filename pattern
+        'SIG*.npy',
+        # how to combine items within each directory
+        merge=np.concatenate,
+        # what to do with items after merge
+        post_convert=cy.utils.Arrays)
             
     if do_find_sensdisc:
         for w in weighting_scheme:
@@ -471,7 +472,7 @@ elif load_trials:
     if plot_TSchi2:
         for w in weighting_scheme:
             g = 2.0
-            print('Plotting TS distribution with Chi2 fit for BG trials with {} weighting and gamma = {} ...'.format(w,g))
+            print('Plotting TS distribution with Chi2 fit for BG trials with {} weighting ...'.format(w))
             TSchi2()
         
     if do_bias_test:
