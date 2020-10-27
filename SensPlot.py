@@ -9,74 +9,65 @@ from glob import glob
 import pickle
 import argparse
 
-parser = argparse.ArgumentParser(description='Plot Sensitivity and Discovery Potential vs Gamma')
-parser.add_argument('-w', '--weight', default='equal', choices=['equal', 'flux'], dest='W')
+#parser = argparse.ArgumentParser(description='Plot Sensitivity and Discovery Potential vs Gamma')
+#parser.add_argument('-w', '--weight', default='equal', choices=['equal', 'flux'], dest='W')
 
-args = parser.parse_args()
-W = args.W
+#args = parser.parse_args()
+#W = args.W
 
-snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/Sens*{}*.pkl'.format(W))
-dnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/Disc*{}*.pkl'.format(W))
+eq_snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/Sens*equal*.pkl')
+eq_dnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/Disc*equal*.pkl')
+
+fx_snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/Sens*flux*.pkl')
+fx_dnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/Disc*flux*.pkl')
 
 #print(snamelist)
 
-gammas = []
-senss = []
-gammad = []
-discs = []
-for sname in snamelist:
-    f = open(sname, "rb")
-    s_dict = pickle.load(f)
-    f.close()
+def get_arrays(namelist):
+    fxs = []
+    gs = []
+    for name in namelist:
+        f = open(name, "rb")
+        dict = pickle.load(f)
+        f.close()
 
-    sens = s_dict['flux_nsig']
-    senss.append(sens)
-    gamma = s_dict['inj_gamma']
-    gammas.append(gamma)
+        fx = dict['flux_nsig_at1']
+        fxs.append(fx)
+        g = dict['inj_gamma']
+        gs.append(g)
+    
+    order = np.argsort(gs)
+    gs = np.array(gs)[order]
+    fxs = np.array(fxs)[order]
+    return fxs, gs
 
-for dname in dnamelist:
-    f = open(dname, "rb")
-    d_dict = pickle.load(f)
-    f.close()
-
-    disc = d_dict['flux_nsig']
-    discs.append(disc)
-    gamma = d_dict['inj_gamma']
-    gammad.append(gamma)
-
-orders = np.argsort(gammas)
-gammas = np.array(gammas)[orders]
-senss = np.array(senss)[orders]
-
-orderd = np.argsort(gammad)
-gammad = np.array(gammad)[orderd]
-discs = np.array(discs)[orderd]
-
-print('gamma (s): ', gammas)
-print('sens: ', senss)
-print('----------------')
-print('gamma (d): ', gammad)
-print('disc: ', discs)
+eq_sens, eq_s_gammas = get_arrays(eq_snamelist)
+eq_disc, eq_d_gammas = get_arrays(eq_dnamelist)
+fx_sens, fx_s_gammas = get_arrays(fx_snamelist)
+fx_disc, fx_d_gammas = get_arrays(fx_dnamelist)
 
 def plot_sens_v_gamma():
     plt.figure(figsize=(8,6))
-    plt.plot(gammas, senss, color='k', marker='+', label='Sensitivity')
-    plt.plot(gammad, discs, color='r', marker='+', label='DP @ gamma=2')
+    plt.plot(eq_s_gammas, eq_sens, color='b', marker='+', label='Sensitivity, Equal')
+    plt.plot(fx_s_gammas, fx_sens, color='g', marker='+', label='Sensitivity, Flux')
+    plt.plot(eq_d_gammas, eq_disc, color='b', marker='x', label='DP, Equal', linestyle='None')
+    plt.plot(fx_d_gammas, fx_disc, color='g', marker='x', label='DP, Flux', linestyle='None')
 
     plt.yscale('log')
 
-    plt.ylabel('E^2 dN/dE [TeV /cm^2 /s   @ 100TeV]')
+    plt.ylabel('E^2 dN/dE [TeV /cm^2 /s   @ 1TeV]')
     plt.xlabel('gamma')
     
-    plt.ylim(1e-13, 1e-11)
+    #plt.ylim(1e-13, 1e-11)
     
-    plt.title('{} Weighting'.format(W.capitalize()))
+    plt.title('Sensitivities')
     plt.legend()
     plt.grid(b=True, which='both', alpha=.7, linestyle=':')
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/SensDisc_v_gamma_{}weighting_{}'.format(W, dt))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/SensDisc_v_gamma_{}'.format(dt))
     plt.close()
     return
 
+#depricated as of 10/23/2020
 def plot_sens_v_E():
     xs = np.logspace(-2, 2, 100)
     
@@ -100,4 +91,4 @@ def plot_sens_v_E():
     plt.close()
     return
 
-plot_sens_v_E()
+plot_sens_v_gamma()

@@ -105,7 +105,6 @@ elif data_save == None:
 
 #Weighting schemes
 num_blaz = len(data['Name'])
-#print(num_blaz)
 
 print('Considering plotting flux pdf...')
 #Plot the Flux weight PDF
@@ -130,9 +129,7 @@ print('Getting analysis arrays...')
 #ana = cy.get_analysis(cy.selections.repo, selection)
 #ana.save('./')
 ana_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/subanalyses')
-#ana_repo = cy.selections.Repository(ana_dir)
 ana = cy.get_analysis(cy.selections.repo, selection, dir=ana_dir)
-#ana = cy.get_analysis(cy.selections.repo, cy.selections.PSDataSpecs.ps_2011, dir='/data/user/mcampana/analysis/Blazar_1FLE')
 
 #Trial save and load directories
 trials_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/trials')
@@ -256,9 +253,8 @@ def get_n_sig(beta=0.9, nsigma=None):
 #        n_sig_step=n_sig_step,
 #        first_batch_size=first_batch_size,
 #        batch_size=batch_size,
-#        # 10% tolerance -- let's get an estimate quick!
 #        tol=tol,
-#        # number of signal signal strengths (default 6, i'm really tryina rush here)
+#        # number of signal signal strengths
 #        n_batches=n_batches
 #    )
 

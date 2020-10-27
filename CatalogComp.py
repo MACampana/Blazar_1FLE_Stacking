@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-
-#Comparing Sources in a few different FermiLAT Catalogs
+#Comparing Sources in a few different FermiLAT Catalogs (1FLE vs 3FHL and vs 2LAC)
 
 import astropy.io.fits as fits
 import pandas as pd
@@ -33,6 +32,42 @@ name3fgl_1fle = np.array(data_1fle.field('Assoc3FGL'))
 class_1fle = np.array(data_1fle.field('Class1'))
 flux30_100_1fle = np.array(data_1fle.field('EF30-100'))
 
+data_3fgl = catList_3fgl.data
+name_3fgl = np.array(data_3fgl.field('Source_Name'))
+class_3fgl = np.array(data_3fgl.field('CLASS1'))
+name2fgl_3fgl = np.array(data_3fgl.field('2FGL_Name'))
+
+#Make dataframes with relevant data columns
+
+df_3fgl = pd.DataFrame(name_3fgl)
+df_3fgl.columns = ['Name_3FGL']
+df_3fgl['Class_3FGL'] = class_3fgl
+df_3fgl['Name_2FGL'] = name2fgl_3fgl
+fgl3.close()
+
+#replace non 3fgl associations with separate values for 1fle
+#This is to avoid merging dataframes on NaN values
+for i in range(len(name3fgl_1fle)):
+    if '3FGL' not in name3fgl_1fle[i]:
+        name3fgl_1fle[i] = False
+        #print(name3fgl_3fhl[i])
+        
+df_1fle = pd.DataFrame(name_1fle)
+df_1fle.columns = ['Name_1FLE']
+df_1fle['Class_1FLE'] = class_1fle
+df_1fle['Name_3FGL'] = name3fgl_1fle
+df_1fle['MeVFlux_1FLE'] = flux30_100_1fle
+fle1.close()
+
+
+
+#----------------------------
+#COMPARISON WITH 3FHL CATALOG
+#----------------------------
+
+
+
+print('Doing 3FHL Comparison...')
 
 data_3fhl = catList_3fhl.data
 name_3fhl = np.array(data_3fhl.field('Source_Name'))
@@ -40,12 +75,7 @@ name3fgl_3fhl = np.array(data_3fhl.field('ASSOC_GAM'))
 class_3fhl = np.array(data_3fhl.field('CLASS'))
 fluxTotal_3fhl = np.array(data_3fhl.field('Energy_Flux')).byteswap().newbyteorder()
 
-
-data_3fgl = catList_3fgl.data
-name_3fgl = np.array(data_3fgl.field('Source_Name'))
-class_3fgl = np.array(data_3fgl.field('CLASS1'))
-
-#replace non 3fgl associations with separate values for 1fle and 3fhl
+#replace non 3fgl associations with separate values for 3fhl
 #This is to avoid merging dataframes on NaN values
 
 for i in range(len(name3fgl_3fhl)):
@@ -53,41 +83,16 @@ for i in range(len(name3fgl_3fhl)):
         name3fgl_3fhl[i] = None
         #print(name3fgl_3fhl[i])
 
-for i in range(len(name3fgl_1fle)):
-    if '3FGL' not in name3fgl_1fle[i]:
-        name3fgl_1fle[i] = False
-        #print(name3fgl_3fhl[i])
-
-#2LAC(AGN), 3FHL(north only)
-
-#Make dataframes with relevant data columns
-
-df_3fgl = pd.DataFrame(name_3fgl)
-df_3fgl.columns = ['Name_3FGL']
-df_3fgl['Class_3FGL'] = class_3fgl
-
-
 df_3fhl = pd.DataFrame(name_3fhl)
 df_3fhl.columns = ['Name_3FHL']
 df_3fhl['Class_3FHL'] = class_3fhl
 df_3fhl['Name_3FGL'] = name3fgl_3fhl
 df_3fhl['IntFlux_10Gto1T'] = fluxTotal_3fhl
-
-
-df_1fle = pd.DataFrame(name_1fle)
-df_1fle.columns = ['Name_1FLE']
-df_1fle['Class_1FLE'] = class_1fle
-df_1fle['Name_3FGL'] = name3fgl_1fle
-df_1fle['MeVFlux_1FLE'] = flux30_100_1fle
-
+fhl3.close()
 
 #Merge 1fle and 3fhl on shared 3fgl names
 
 df_1fle_3fhl = pd.merge(df_3fhl, df_1fle, on='Name_3FGL', how='inner')
-#display(df_1fle_3fhl)
-#with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-#    display(df_1fle_3fhl.sort_values('Class_1FLE'))
-
 
 overlap_class_list = np.array(df_1fle_3fhl['Class_1FLE'])
 unique, counts = np.unique(overlap_class_list, return_counts=True)
@@ -107,6 +112,7 @@ MeVFlux_overlap = df_1fle_3fhl['MeVFlux_1FLE'].to_numpy()
 print(np.min(flux_overlap132), np.max(flux_overlap132))
 print(np.min(fluxTotal_3fhl), np.max(fluxTotal_3fhl))
 
+#HE Histogram
 fig, ax1 = plt.subplots(facecolor='w', figsize=(8,6))
 
 logbins = np.logspace(np.log10(1.0e-13),np.log10(1.0e-9), 25)
@@ -134,6 +140,8 @@ plt.legend(loc='best')
 plt.savefig('./plots/HE_FluxPDF_3FHL_wOverlap.png')
 plt.close()
 
+
+#Flux weight scatter
 fig, ax = plt.subplots(facecolor='w', figsize=(6,6))
 ax.scatter(MeVFlux_overlap/np.sum(flux30_100_1fle), flux_overlap132/np.sum(fluxTotal_3fhl), marker='+', color='purple')
 ax.set_xlabel('1FLE Normalized Flux (30-100 MeV)', color='b')
@@ -152,11 +160,110 @@ ax.set_title('Normalized Fluxes of 1FLE/3FHL Shared Sources')
 plt.savefig('./plots/NormFlux_OverlapComparison_3FHL.png')
 plt.close()
 
+
+#Venn Diagram
 plt.figure(facecolor='w', figsize=(6,6))
 plt.title('3FGL Associated Sources')
 mpv.venn2([set(name3fgl_1fle),set(name3fgl_3fhl)], set_labels=('1FLE', '3FHL'), set_colors=('b','r'))
 plt.savefig('./plots/VennOverlap_3FHL.png')
 plt.close()
 
-fle1.close()
-fhl3.close()
+print('Done 3FHL Comparison...')
+
+
+
+#----------------------------
+#COMPARISON WITH 2LAC CATALOG
+#----------------------------
+
+
+
+print('Doing 2LAC Comparison...')
+
+#Read 2LAC into Dataframe
+import csv
+df_2lac = pd.read_table('./2lac.txt', sep='|')
+
+
+#Rename Columns
+df_2lac.columns = ["id","Name_2FGL","RA","DEC","THETA","Class_2LAC", "Redshift", "SED", "GeVFlux_2LAC", "Spectral_Ind"]
+
+
+
+#Get rid of whitespace so naming conventions match
+df_2lac['Name_2FGL'] = df_2lac['Name_2FGL'].apply(lambda x: x.strip())
+
+df_3fgl['Name_2FGL'] = df_3fgl['Name_2FGL'].apply(lambda x: x.replace(' ',''))
+
+
+#Keeping only the columns of current interest
+df_2lac = df_2lac[['Name_2FGL', 'Class_2LAC', 'GeVFlux_2LAC']]
+
+#Change dtype of GeVFlux to float and set the three values with fluxes as max limits to that limit
+df_2lac['GeVFlux_2LAC'] = df_2lac['GeVFlux_2LAC'].apply(lambda x: float(x.replace('<','').strip()))
+
+
+#First, merge 1fle and 3fgl on shared 3fgl name
+df_1fle_3fgl = pd.merge(df_3fgl, df_1fle, on='Name_3FGL', how='inner')
+
+
+#Then, merge the first merged DF with 2lac on the shared 2fgl name
+df_1fle_3fgl_2lac = pd.merge(df_1fle_3fgl, df_2lac, on='Name_2FGL', how='inner')
+
+
+#Keep only columns of current interest
+df_1fle_3fgl_2lac = df_1fle_3fgl_2lac[['Name_3FGL', 'Name_2FGL', 'Name_1FLE', 'Class_1FLE', 'GeVFlux_2LAC', 'MeVFlux_1FLE']]
+
+#134 overlapped sources (see below about duplicate)
+
+
+#Get overlapped classes
+overlap_class_list = np.array(df_1fle_3fgl_2lac['Class_1FLE'])
+unique, counts = np.unique(overlap_class_list, return_counts=True)
+overlap_class_dict = dict(zip(unique, counts))
+print('The following are the number of each class that is included in the overlapped sources.')
+print(overlap_class_dict)
+#29 BLL, 93 FSRQ overlap --> 122 Blazars
+
+
+#Check for multiple occurrences of counterparts
+print('Duplicate Entries:')
+ns, cs = np.unique(df_1fle_3fgl_2lac['Name_2FGL'], return_counts=True)
+
+rep_dict = dict(zip(ns,cs))
+
+for k in rep_dict.keys():
+    if rep_dict[k] != 1:
+        print(k,' | ', rep_dict[k])
+
+print('This merging of dataframes created a duplicate entry for a source that exists once in 1FLE and 3FGL, \n but twice in 2LAC... \n (i.e., there is a pair of sources in 2LAC that share a single 2FGL source which is shared by 1FLE (via 3FGL)):')
+print(df_1fle_3fgl_2lac.loc[((df_1fle_3fgl_2lac.loc[:,'Name_2FGL'] == '2FGLJ1153.2+4935'))])
+#29 BLL, 93 (-1 = 92 from duplicate) FSRQ overlap --> 122 (-1 = 121) Blazars
+
+
+#Overlap Venn Diagram
+plt.figure(facecolor='w', figsize=(6,6))
+plt.title('2FGL Associated Sources')
+mpv.venn2([set(df_1fle_3fgl['Name_2FGL']),set(df_2lac['Name_2FGL'])], set_labels=('1FLE', '2LAC'), set_colors=('b','g'))
+plt.savefig('./plots/VennOverlap_2LAC.png')
+plt.close()
+
+
+#Flux weight scatter
+fig, ax = plt.subplots(facecolor='w', figsize=(6,6))
+ax.scatter(df_1fle_3fgl_2lac['MeVFlux_1FLE']/np.sum(flux30_100_1fle), df_1fle_3fgl_2lac['GeVFlux_2LAC']/np.sum(df_2lac['GeVFlux_2LAC']), marker='+', color='cadetblue')
+ax.set_xlabel('1FLE Normalized Flux (30-100 MeV)', color='b')
+ax.set_ylabel('2LAC Normalized Flux (1-100 GeV)', color='g')
+#plt.xlim(-0.001,.2)
+#plt.ylim(-0.001,.2)
+
+lim = .0001, .1
+ax.plot(lim, lim, 'k--', zorder=-10)
+ax.set(xlim=lim, ylim=lim, aspect='equal')
+
+ax.set_yscale('log')
+ax.set_xscale('log')
+
+ax.set_title('Normalized Fluxes of 1FLE/2LAC Shared Sources')
+plt.savefig('./plots/NormFlux_OverlapComparison_2LAC.png')
+plt.close()
