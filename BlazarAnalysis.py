@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
 # See https://icecube.wisc.edu/~mrichman/docs/csky/about.html
+
+#=========================================================
+#       IMPORTS
+#=========================================================
 import sys
 import datetime
 today_date = datetime.datetime.now().strftime("%b-%d-%Y_%H-%M-%S")
@@ -22,8 +26,11 @@ import pickle
 
 plt.ioff()
 
-#ARGS
 import argparse
+
+#=========================================================
+#       ARGUMENTS
+#=========================================================
 
 parser = argparse.ArgumentParser(description='Perform stacking analysis on 1FLE Blazars with the 10yrPStracks dataset.')
 
@@ -46,6 +53,9 @@ parser.add_argument('-l', '--lotr', action='store_true', dest='load_trials', hel
 parser.add_argument('-s', '--sensdisc', action='store_true', dest='do_find_sensdisc', help='Use this option to do sensitivity and discovery calculation.')
 parser.add_argument('-b', '--bias', action='store_true', dest='do_bias_test', help='Use this option to perform and plot bias tests, for given weights and gammas.')
 parser.add_argument('-i', '--chi2', action='store_true', dest='plot_TSchi2', help='Use this option to plot the TS dist and chi2 fit of loaded trials.')
+parser.add_argument('-d', '--diff-sens', action='store_true', dest='diff_sens', help='Use this option to calculate differential sensitvities.')
+parser.add_argument('--hemi', default='both', choices=['both', 'north', 'south'], type=str, dest='hemisphere', help='ONE of both, north, OR south. Hemisphere for sources.')
+parser.add_argument('--no-poisson', action='store_false', dest='poisson', help='Use this option to NOT inject with poisson distribution suring signal trial making.')
 
 #Args -> variables
 args = parser.parse_args()
@@ -70,14 +80,27 @@ do_find_sensdisc = args.do_find_sensdisc
 do_bias_test = args.do_bias_test
 plot_TSchi2 = args.plot_TSchi2
 cpus = args.cpus
+diff_sens = args.diff_sens
+hemisphere = args.hemisphere
+poisson = args.poisson
+
+#=========================================================
+#       CATALOG/DATA EXTRACTION
+#=========================================================
 
 print('Loading Fits...')
 #Open Catalog fits file
 fits_1fle = fits.open('/data/user/mcampana/analysis/Blazar_1FLE/1fle.fits')
 #Get Column Names
 cols = fits_1fle[1].data.columns.names
-#Extract Blazars
-b_mask = (fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')
+#Extract Blazars (all, north, south)
+if hemisphere == 'both':
+    b_mask = (fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')
+elif hemisphere == 'north':
+    b_mask = ((fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')) & (fits_1fle[1].data['DEdeg'] > -5.0)
+elif hemisphere == 'south':
+    b_mask = ((fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')) & (fits_1fle[1].data['DEdeg'] <= -5.0)
+
 blaz_1fle = fits_1fle[1].data[b_mask]
 
 #29 BL LACs -> seems like 2 were changed to FSRQ from paper
@@ -95,16 +118,17 @@ print('Fits closed...')
 print('Considering saving data...')
 #Save source list with all data as CSV and Text Files
 if data_save == 'csv':
-    pd.DataFrame.from_dict(data).to_csv('/data/user/mcampana/analysis/Blazar_1FLE/1FLE_Blazars_Data.csv')
+    pd.DataFrame.from_dict(data).to_csv('/data/user/mcampana/analysis/Blazar_1FLE/1FLE_Blazars_Data_{}.csv'.format(hemisphere))
 elif data_save == 'txt':
-    f = open("/data/user/mcampana/analysis/Blazar_1FLE/1FLE_Blazars_Data.txt","w")
+    f = open("/data/user/mcampana/analysis/Blazar_1FLE/1FLE_Blazars_Data_{}.txt".format(hemisphere),"w")
     f.write(str(data))
     f.close()
 elif data_save == None:
     pass
 
-#Weighting schemes
+#For Weighting
 num_blaz = len(data['Name'])
+print("Stacking {} 1FLE Blazars in the {} hemisphere...".format(num_blaz, hemisphere))
 
 print('Considering plotting flux pdf...')
 #Plot the Flux weight PDF
@@ -115,10 +139,18 @@ if plot_flux_pdf:
     plt.ylabel("Counts")
     plt.title("Energy Flux PDF for 1FLE Blazars")
     #plt.semilogy()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/EnergyFlux_30-100MeV_PDF_{}.png'.format(today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/EnergyFlux_30-100MeV_PDF_{}_{}.png'.format(hemisphere,today_date))
     plt.close()
     sys.exit("Plotted Flux PDF, exiting program...")
-    
+
+#=========================================================
+#       CSKY SETUP
+#=========================================================
+
+if poisson:
+    pDirName = 'poisson'
+else:
+    pDirName = 'nopoisson'
 
 print('Getting data selection...')
 #Data selection
@@ -139,13 +171,14 @@ bg_dir = cy.utils.ensure_dir('{}/bg'.format(trials_dir))
 #=========================================================
 #       FUNCTION DEFINITIONS 
 #=========================================================
+
 #Do BG Trials
 def bg_trials():
     
     trials = tr.get_many_fits(num_trials, seed=s)
     #Save Trials to numpy array file
-    dir_ = cy.utils.ensure_dir('{}/weight/{}/gamma/{}'.format(bg_dir,w,g))
-    save_trials_fname = '{}/BG_{}trials_{}weight_gamma{}_10yrPStracks_1FLEblazars_seed{}_{}.npy'.format(dir_, num_trials, w, g, s, today_date)
+    dir_ = cy.utils.ensure_dir('{}/hemisphere/{}/weight/{}/gamma/{}'.format(bg_dir,h,w,g))
+    save_trials_fname = '{}/BG_{}trials_10yrPStracks_1FLEblazars_seed{}_{}.npy'.format(dir_, num_trials, s, today_date)
     np.save(save_trials_fname, trials.as_array)
     print("BG Trials saved ->", save_trials_fname)
     
@@ -154,10 +187,10 @@ def bg_trials():
 #Do Signal Trials
 def sig_trials():
     
-    trials = tr.get_many_fits(num_trials/2, n_sig, seed=s)
+    trials = tr.get_many_fits(num_trials/2, n_sig, seed=s, poisson=poisson)
     #Save Trials to numpy array file    
-    dir_ = cy.utils.ensure_dir('{}/weight/{}/gamma/{}/nsig/{}'.format(sig_dir,w,g,n_sig))
-    save_trials_fname = '{}/SIG_{}trials_{}weight_gamma{}_nsig{}_10yrPStracks_1FLEblazars_seed{}_{}.npy'.format(dir_, int(num_trials/2), w, g, n_sig, s, today_date)
+    dir_ = cy.utils.ensure_dir('{}/{}/hemisphere/{}/weight/{}/gamma/{}/nsig/{}'.format(sig_dir,pDirName,h,w,g,n_sig))
+    save_trials_fname = '{}/SIG_{}trials_10yrPStracks_1FLEblazars_seed{}_{}.npy'.format(dir_, int(num_trials/2), s, today_date)
     np.save(save_trials_fname, trials.as_array)
     print("Signal Trials saved ->", save_trials_fname)
       
@@ -168,22 +201,22 @@ def sig_trials():
 def TSchi2():
     fig, ax = plt.subplots()
 
-    b = cy.bk.get_best(bg_chi2, 'weight', w, 'gamma', g)
-    h = b.get_hist(bins=30)
-    hl.plot1d(ax, h, crosses=True, label='{} bg trials'.format(b.n_total))
+    b = cy.bk.get_best(bg_chi2, 'hemisphere', h, 'weight', w, 'gamma', g)
+    hst = b.get_hist(bins=30)
+    hl.plot1d(ax, hst, crosses=True, label='{} bg trials'.format(b.n_total))
 
-    x = h.centers[0]
-    norm = h.integrate().values
+    x = hst.centers[0]
+    norm = hst.integrate().values
     ax.semilogy(x, norm * b.pdf(x), lw=1, ls='--',
                 label='Chi2 fit: {} dof, eta={}'.format(np.round(b.ndof,3), np.round(b.eta,3)))
 
     ax.set_xlabel('TS')
     ax.set_ylabel('number of trials')
     ax.legend()
-    ax.set_title('{} Weighted'.format(w.capitalize()))
+    ax.set_title('{} Weighted, {} Hemisphere(s)'.format(w.capitalize(), h.capitalize()))
 
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}trials_{}weighting_10yrPStracks_1FLEblazars_{}.png'.format(b.n_total, w, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}trials_{}weighting_{}hemi_{}_10yrPStracks_1FLEblazars_{}.png'.format(b.n_total, w, h, pDirName, today_date))
     plt.close()
     
     return
@@ -222,7 +255,7 @@ def multi_TSchi2():
     for ax in aaxs[:,0]:
         ax.set_ylabel('trials per bin')
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}weighting_10yrPStracks_1FLEblazars_{}.png'.format(w, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}weighting_{}hemi_{}_10yrPStracks_1FLEblazars_{}.png'.format(w,h, pDirName, today_date))
     plt.close()
     
     return
@@ -233,8 +266,8 @@ def ndarray_to_Chi2TSD(tri):
 
 def get_n_sig(beta=0.9, nsigma=None):
     # get signal trials, background distribution, and trial runner
-    sig_trials = cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig')
-    b = cy.bk.get_best(bg_chi2, 'weight', w, 'gamma', g)
+    sig_trials = cy.bk.get_best(sig, pDirName, 'hemisphere', h, 'weight', w, 'gamma', g, 'nsig')
+    b = cy.bk.get_best(bg_chi2, 'hemisphere', h, 'weight', w, 'gamma', g)
     # determine ts threshold
     if nsigma is not None:
         ts = b.isf_nsigma(nsigma)
@@ -259,18 +292,25 @@ def get_n_sig(beta=0.9, nsigma=None):
 #    )
 
     #Get flux, and add parameters to dictionary for saving
-    flux_nsig = tr.to_E2dNdE(result, E0=ref_E, unit=flux_unit)   # TeV/cm2/s  @  100TeV by default
-    dnde_nsig = tr.to_dNdE(result, E0=ref_E, unit=flux_unit)     # 1/TeV/cm2/s  @  100TeV by default
-    flux_nsig_at1 = tr.to_E2dNdE(result, E0=1, unit=flux_unit)   # TeV/cm2/s  @  1 TeV 
+    flux_nsig = tr.to_E2dNdE(result, E0=ref_E, unit=flux_unit)   # TeV/cm2/s  @  100TeV by default when not diff_sens
     
+    if not diff_sens:
+        flux_nsig_at1 = tr.to_E2dNdE(result, E0=1, unit=flux_unit)   # TeV/cm2/s  @  1 TeV 
+        result['info']['flux_nsig_at1'] = flux_nsig_at1
+        dnde_nsig = tr.to_dNdE(result, E0=ref_E, unit=flux_unit)     # 1/TeV/cm2/s  @  100TeV by default
+        result['info']['dnde_nsig'] = dnde_nsig
+        
     result['info']['flux_nsig'] = flux_nsig
-    result['info']['flux_nsig_at1'] = flux_nsig_at1
-    result['info']['dnde_nsig'] = dnde_nsig
     result['info']['inj_gamma'] = g
     result['info']['flux_E0'] = ref_E
     result['info']['flux_Eunit'] = flux_unit
-
-    save_nsig_fname = '/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/{}Info_{}weight_gamma{}_10yrPStracks_1FLEblazars_{}.pkl'.format(kind, w, g, today_date)
+    
+    sensSaveDir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/{}/hemisphere/{}/weight/{}'.format(pDirName, h, w))    
+    if diff_sens:
+        save_nsig_fname = '{}/Diff{}Info_gamma{}_Emin{}_10yrPStracks_1FLEblazars_{}.pkl'.format(sensSaveDir, kind, g, np.round(E_min,1), today_date)
+    else:
+        save_nsig_fname = '{}/{}Info_gamma{}_10yrPStracks_1FLEblazars_{}.pkl'.format(sensSaveDir, kind, g, today_date)
+    
     f = open(save_nsig_fname, "wb")
     pickle.dump(result['info'],f)
     f.close()
@@ -290,7 +330,7 @@ def plot_sensdisc():
     ax.set_title('{} weighting'.format(w))
     ax.grid()
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/SensDisc_{}weighting_10yrPStracks_1FLEblazars_{}.png'.format(w, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/SensDisc_{}weighting_{}hemi_{}_10yrPStracks_1FLEblazars_{}.png'.format(w,h,pDirName, today_date))
     plt.close()
     
     return
@@ -299,15 +339,7 @@ def plot_sensdisc():
 def bias_test():
     #Making new trials...
     n_sigs = np.r_[:201:20]
-    trials = [tr.get_many_fits(100, n_sig=n_sig, logging=False, seed=n_sig) for n_sig in n_sigs]
-    
-    #Using loaded trials
-    #n_sigs = list(cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig').keys())
-    #n_sigs.sort()
-    #trials = [cy.bk.get_best(sig, 'weight', w, 'gamma', g, 'nsig', n_sig) for n_sig in n_sigs]
-    #b = cy.bk.get_best(bg_chi2, 'weight', w, 'gamma', g)
-    #trials.insert(0, b.trials)
-    #n_sigs.insert(0,0)
+    trials = [tr.get_many_fits(100, n_sig=n_sig, logging=False, seed=n_sig, poisson=False) for n_sig in n_sigs]
         
     for (n_sig, t) in zip(n_sigs, trials):
         t['ntrue'] = np.repeat(n_sig, len(t))
@@ -345,12 +377,15 @@ def bias_test():
 
     plt.title('Gamma={}, {} Weighted'.format(g,w.capitalize()))
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/BiasTest_{}weighting_gamma{}_10yrPStracks_1FLEblazars_{}.png'.format(w, g, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/BiasTest_{}weighting_gamma{}_{}hemi_{}_10yrPStracks_1FLEblazars_{}.png'.format(w, g, h, pDirName, today_date))
     plt.close()
     
     return
 #=========================================================
+#      DOING THE WORK
 #=========================================================
+
+h = hemisphere
 
 if do_trials:
     
@@ -404,7 +439,7 @@ if do_trials:
                         n_sigs = np.r_[100:140.1:4] 
                     
                 for n_sig in n_sigs:
-                    print('Doing {} Signal trials for {} weight, gamma = {}, seed = {}, n_sig = {} ...'.format(num_trials/2,w,g,s,n_sig))
+                    print('Doing {} Signal trials for {} hemisphere, {} weight, gamma = {}, seed = {}, n_sig = {} ...'.format(num_trials/2,h,w,g,s,n_sig))
                     sig_trials()
                     
 elif load_trials:
@@ -446,29 +481,50 @@ elif load_trials:
             
             for g in gamma:
                 
-                print('Calculating Sensitivity for: {} Weighting and Gamma={} ...'.format(w,g))
-                tr = cy.get_trial_runner(src=srcs, ana=ana, flux=cy.hyp.PowerLawFlux(g), mp_cpus=cpus)
-                
-                f_sens = get_n_sig(beta=0.9, nsigma=None)
-                print('')
-                print('Sensitivity Flux: ', f_sens)
-                
-                if g==2.0:
+                if diff_sens:
                     
-                    f_disc = get_n_sig(beta=0.5, nsigma=5)
-                    print('')
-                    print('Discovery Potential Flux: ', f_disc)
-                    #fluxes_disc.append(f_disc)
+                    logE_range = np.arange(2.0, 8.1, .5) #log (E/ 1 GeV)
+                    for i in range(len(logE_range[:-1])):
+                        E_min = 10**(logE_range[i])
+                        E_max = 10**(logE_range[i+1])
+                        
+                        ref_E = E_min * 10**-3         #in TeV
+                        flux = cy.hyp.PowerLawFlux(gamma=g, energy_range=(E_min, E_max))
 
-                #fluxes_sens.append(f_sens)
-                print('')
+                        print('Calculating Differential Sensitivity for: Emin={}, {} Hermisphere, {} Weighting, and Gamma={} ...'.format(E_min,h,w,g))
+                        tr = cy.get_trial_runner(src=srcs, ana=ana, flux=flux, mp_cpus=cpus, update_bg=True)
+
+                        f_sens = get_n_sig(beta=0.9, nsigma=None)
+                        print('')
+                        print('Sensitivity Flux: ', f_sens)
+                    
+                else:
+                    
+                    flux = cy.hyp.PowerLawFlux(g)
                 
+                    print('Calculating Sensitivity for: {} Hemisphere, {} Weighting, and Gamma={} ...'.format(h,w,g))
+                    tr = cy.get_trial_runner(src=srcs, ana=ana, flux=flux, mp_cpus=cpus, update_bg=True)
+
+                    f_sens = get_n_sig(beta=0.9, nsigma=None)
+                    print('')
+                    print('Sensitivity Flux: ', f_sens)
+
+                    if g==2.0:
+
+                        f_disc = get_n_sig(beta=0.5, nsigma=5)
+                        print('')
+                        print('Discovery Potential Flux: ', f_disc)
+                        #fluxes_disc.append(f_disc)
+
+                    #fluxes_sens.append(f_sens)
+                    print('')
+
             #plot_sensdisc()
     
     if plot_TSchi2:
         for w in weighting_scheme:
             g = 2.0
-            print('Plotting TS distribution with Chi2 fit for BG trials with {} weighting ...'.format(w))
+            print('Plotting TS distribution with Chi2 fit for {} hemisphere BG trials with {} weighting ...'.format(h,w))
             TSchi2()
         
     if do_bias_test:
@@ -483,7 +539,7 @@ elif load_trials:
             srcs = cy.utils.Sources(ra=data['RAdeg'], dec=data['DEdeg'], deg=True, weight=src_weights)          
 
             for g in gamma:
-                print('Plotting bias tests for {} weighting and gamma={}'.format(w,g))
+                print('Plotting bias tests for {}hemisphere, {} weighting, and gamma={}'.format(h,w,g))
                 tr = cy.get_trial_runner(src=srcs, ana=ana, flux=cy.hyp.PowerLawFlux(g), mp_cpus=cpus, update_bg=True)
                 bias_test()
 
