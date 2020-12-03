@@ -17,7 +17,7 @@ def get_arrays_SensGamma(namelist):
         dict1 = pickle.load(f)
         f.close()
 
-        fx = dict1['flux_nsig_at1']
+        fx = dict1['flux_nsig']
         fxs.append(fx)
         g = dict1['inj_gamma']
         gs.append(g)
@@ -59,19 +59,19 @@ fx_disc, fx_d_gammas = get_arrays_SensGamma(fx_dnamelist)
 def plot_sens_v_gamma():
     
     plt.figure(figsize=(8,6))
-    plt.plot(eq_s_gammas, eq_sens, color='b', marker='+', label='Sensitivity, Equal')
-    plt.plot(fx_s_gammas, fx_sens, color='g', marker='+', label='Sensitivity, Flux')
-    plt.plot(eq_d_gammas, eq_disc, color='b', marker='x', label='DP, Equal', linestyle='None')
-    plt.plot(fx_d_gammas, fx_disc, color='g', marker='x', label='DP, Flux', linestyle='None')
+    plt.plot(eq_s_gammas, eq_sens, color='C0', marker='+', label='Sensitivity, Equal')
+    plt.plot(fx_s_gammas, fx_sens, color='C1', marker='+', label='Sensitivity, Flux')
+    plt.plot(eq_d_gammas, eq_disc, color='C0', marker='x', label='DP, Equal', linestyle='--')
+    plt.plot(fx_d_gammas, fx_disc, color='C1', marker='x', label='DP, Flux', linestyle='--')
 
     plt.yscale('log')
 
-    plt.ylabel('E^2 dN/dE [TeV /cm^2 /s @ 1TeV]')
+    plt.ylabel('E^2 dN/dE [TeV /cm^2 /s @ 100TeV]')
     plt.xlabel('gamma')
     
-    plt.ylim(1e-13, 2e-10)
+    plt.ylim(1e-13, 1e-9)
     
-    plt.title('Sensitivities')
+    #plt.title()
     plt.legend()
     plt.grid(b=True, which='major', alpha=.7, linestyle=':')
     plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/SensDisc_v_gamma_possion_{}'.format(dt))

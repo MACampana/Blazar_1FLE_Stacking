@@ -50,10 +50,11 @@ parser.add_argument('--E0', default=100, type=float, dest='ref_E', help='Referen
 parser.add_argument('--funits', default=1e3, type=float, dest='flux_unit', help='Energy units for flux, wrt GeV.')
 parser.add_argument('-c', '--dotr', action='store_true', dest='do_trials', help='Use this option to perform trials.')
 parser.add_argument('-l', '--lotr', action='store_true', dest='load_trials', help='Use this option to load trials for calculations.')
-parser.add_argument('-s', '--sensdisc', action='store_true', dest='do_find_sensdisc', help='Use this option to do sensitivity and discovery calculation.')
+parser.add_argument('-s', '--sens', action='store_true', dest='do_find_sens', help='Use this option to do sensitivity calculation.')
+parser.add_argument('-d', '--disc', action='store_true', dest='do_find_disc', help='Use this option to do discovery potential calculation.')
 parser.add_argument('-b', '--bias', action='store_true', dest='do_bias_test', help='Use this option to perform and plot bias tests, for given weights and gammas.')
 parser.add_argument('-i', '--chi2', action='store_true', dest='plot_TSchi2', help='Use this option to plot the TS dist and chi2 fit of loaded trials.')
-parser.add_argument('-d', '--diff-sens', action='store_true', dest='diff_sens', help='Use this option to calculate differential sensitvities.')
+parser.add_argument('--diff-sens', action='store_true', dest='diff_sens', help='Use this option to calculate differential sensitvities.')
 parser.add_argument('--hemi', default='both', choices=['both', 'north', 'south'], type=str, dest='hemisphere', help='ONE of both, north, OR south. Hemisphere for sources.')
 parser.add_argument('--no-poisson', action='store_false', dest='poisson', help='Use this option to NOT inject with poisson distribution suring signal trial making.')
 
@@ -76,7 +77,8 @@ ref_E = args.ref_E
 flux_unit = args.flux_unit
 do_trials = args.do_trials
 load_trials = args.load_trials
-do_find_sensdisc = args.do_find_sensdisc
+do_find_sens = args.do_find_sens
+do_find_disc = args.do_find_disc
 do_bias_test = args.do_bias_test
 plot_TSchi2 = args.plot_TSchi2
 cpus = args.cpus
@@ -165,6 +167,8 @@ ana = cy.get_analysis(cy.selections.repo, selection, dir=ana_dir)
 
 #Trial save and load directories
 trials_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/trials')
+#test_trials_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/test_trials')
+
 sig_dir = cy.utils.ensure_dir('{}/sig'.format(trials_dir))
 bg_dir = cy.utils.ensure_dir('{}/bg'.format(trials_dir))
 
@@ -271,7 +275,7 @@ def get_n_sig(beta=0.9, nsigma=None):
     # determine ts threshold
     if nsigma is not None:
         ts = b.isf_nsigma(nsigma)
-        kind = 'Disc'
+        kind = 'Disc{}'.format(nsigma)
     else:
         ts = b.median()
         kind = 'Sens'
@@ -377,7 +381,7 @@ def bias_test():
 
     plt.title('Gamma={}, {} Weighted'.format(g,w.capitalize()))
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/BiasTest_{}weighting_gamma{}_{}hemi_{}_10yrPStracks_1FLEblazars_{}.png'.format(w, g, h, pDirName, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/BiasTest_{}weighting_gamma{}_{}hemi_{}_10yrPStracks_1FLEblazars_{}.png'.format(w, g, hemisphere, pDirName, today_date))
     plt.close()
     
     return
@@ -408,35 +412,36 @@ if do_trials:
                 
                 if w == 'equal':
                     if g == 1.75: 
-                        n_sigs = np.r_[2:22.1:2] 
+                        n_sigs = np.r_[2:22.1:2, 30:70.1:4] 
                     elif g == 2.0: 
                         n_sigs = np.r_[2:42.1:4, 60:100.1:4] 
                     elif g == 2.25: 
-                        n_sigs = np.r_[10:50.1:4] 
+                        n_sigs = np.r_[10:50.1:4, 120:160.1:4]
                     elif g == 2.5: 
-                        n_sigs = np.r_[40:80.1:4] 
+                        n_sigs = np.r_[40:80.1:4, 200:240.1:4] 
                     elif g == 2.75: 
-                        n_sigs = np.r_[70:110.1:4] 
+                        n_sigs = np.r_[70:110.1:4, 330:370.1:4]
                     elif g == 3.0:
-                        n_sigs = np.r_[110:150.1:4] 
+                        n_sigs = np.r_[110:150.1:4, 520:560.1:4] 
                     elif g == 3.25:
-                        n_sigs = np.r_[160:200.1:4] 
+                        n_sigs = np.r_[160:200.1:4, 700:740.1:4] 
                         
                 elif w == 'flux':
                     if g == 1.75: 
-                        n_sigs = np.r_[2:22.1:2] 
+                        n_sigs = np.r_[2:22.1:2, 20:60.1:4] 
                     elif g == 2.0: 
                         n_sigs = np.r_[4:24.1:2, 40:80.1:4] 
                     elif g == 2.25: 
-                        n_sigs = np.r_[2:42.1:4] 
+                        n_sigs = np.r_[2:42.1:4, 80:120.1:4] 
                     elif g == 2.5: 
-                        n_sigs = np.r_[20:60.1:4] 
+                        n_sigs = np.r_[20:60.1:4, 140:180.1:4] 
                     elif g == 2.75: 
-                        n_sigs = np.r_[40:80.1:4] 
+                        n_sigs = np.r_[40:80.1:4, 230:270.1:4] 
                     elif g == 3.0:
-                        n_sigs = np.r_[70:110.1:4]
+                        n_sigs = np.r_[70:110.1:4, 340:380.1:4]
                     elif g == 3.25:
-                        n_sigs = np.r_[100:140.1:4] 
+                        n_sigs = np.r_[100:140.1:4, 440:480.1:4] 
+                        
                     
                 for n_sig in n_sigs:
                     print('Doing {} Signal trials for {} hemisphere, {} weight, gamma = {}, seed = {}, n_sig = {} ...'.format(num_trials/2,h,w,g,s,n_sig))
@@ -466,7 +471,7 @@ elif load_trials:
         # what to do with items after merge
         post_convert=cy.utils.Arrays)
             
-    if do_find_sensdisc:
+    if do_find_sens or do_find_disc:
         for w in weighting_scheme:
             if w == 'equal':
                 src_weights = np.ones(num_blaz) / num_blaz
@@ -504,22 +509,20 @@ elif load_trials:
                 
                     print('Calculating Sensitivity for: {} Hemisphere, {} Weighting, and Gamma={} ...'.format(h,w,g))
                     tr = cy.get_trial_runner(src=srcs, ana=ana, flux=flux, mp_cpus=cpus, update_bg=True)
+                    
+                    if do_find_sens:
 
-                    f_sens = get_n_sig(beta=0.9, nsigma=None)
-                    print('')
-                    print('Sensitivity Flux: ', f_sens)
+                        f_sens = get_n_sig(beta=0.9, nsigma=None)
+                        print('')
+                        print('Sensitivity Flux: ', f_sens)
 
-                    if g==2.0:
+                    if do_find_disc:
 
                         f_disc = get_n_sig(beta=0.5, nsigma=5)
                         print('')
                         print('Discovery Potential Flux: ', f_disc)
-                        #fluxes_disc.append(f_disc)
-
-                    #fluxes_sens.append(f_sens)
+                        
                     print('')
-
-            #plot_sensdisc()
     
     if plot_TSchi2:
         for w in weighting_scheme:

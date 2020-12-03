@@ -62,7 +62,7 @@ if [ $1 == 'sensdisc' ]; then
     exec_path="/scratch/mcampana/job_files/execs/$1/$2/Do_$1_$2.sh"
     touch ${exec_path}
     echo "#!/bin/sh" >> ${exec_path}
-    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g ${gammas[@]} -l -s --hemi $2 -i" >> ${exec_path}
+    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g ${gammas[@]} -l -s -d --hemi $2" >> ${exec_path}
 
     sub_path="/scratch/mcampana/job_files/subs/$1/$2/Submit_$1_$2.submit"
     touch ${sub_path}
@@ -85,7 +85,7 @@ if [ $1 == 'diffsens' ]; then
     exec_path="/scratch/mcampana/job_files/execs/$1/$2/Do_$1_$2.sh"
     touch ${exec_path}
     echo "#!/bin/sh" >> ${exec_path}
-    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g 2.0 -l -s -d --hemi $2" >> ${exec_path}
+    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g 2.0 -l -s --diff-sens --hemi $2" >> ${exec_path}
 
     sub_path="/scratch/mcampana/job_files/subs/$1/$2/Submit_$1_$2.submit"
     touch ${sub_path}
