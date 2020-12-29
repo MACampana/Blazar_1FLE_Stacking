@@ -35,7 +35,7 @@ if [ $1 == 'trials' ]; then
                 exec_path="/scratch/mcampana/job_files/execs/$1/$2/Do_$1_${w}weight_gamma${g}_seed${c}_$2.sh"
                 touch ${exec_path}
                 echo "#!/bin/sh" >> ${exec_path}
-                echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${w} -g ${g} -n 100 --cpus 1 -c --seed ${c} --hemi $2" >> ${exec_path}
+                echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${w} -g ${g} -n 100 --cpus 1 -c --seed ${c} --hemi $2 --dataset ps-v4" >> ${exec_path}
     
                 sub_path="/scratch/mcampana/job_files/subs/$1/$2/Submit_$1_${w}weight_gamma${g}_seed${c}_$2.submit"
                 touch ${sub_path}
@@ -62,7 +62,7 @@ if [ $1 == 'sensdisc' ]; then
     exec_path="/scratch/mcampana/job_files/execs/$1/$2/Do_$1_$2.sh"
     touch ${exec_path}
     echo "#!/bin/sh" >> ${exec_path}
-    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g ${gammas[@]} -l -s -d --hemi $2" >> ${exec_path}
+    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g ${gammas[@]} -l -s -d --hemi $2 --dataset ps-v4" >> ${exec_path}
 
     sub_path="/scratch/mcampana/job_files/subs/$1/$2/Submit_$1_$2.submit"
     touch ${sub_path}
@@ -85,7 +85,7 @@ if [ $1 == 'diffsens' ]; then
     exec_path="/scratch/mcampana/job_files/execs/$1/$2/Do_$1_$2.sh"
     touch ${exec_path}
     echo "#!/bin/sh" >> ${exec_path}
-    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g 2.0 -l -s --diff-sens --hemi $2" >> ${exec_path}
+    echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${weights[@]} -g 2.0 -l -s --diff-sens --hemi $2 --dataset ps-v4" >> ${exec_path}
 
     sub_path="/scratch/mcampana/job_files/subs/$1/$2/Submit_$1_$2.submit"
     touch ${sub_path}
@@ -110,7 +110,7 @@ if [ $1 == 'bias' ]; then
             exec_path="/scratch/mcampana/job_files/execs/$1/$2/Do_$1_${w}_${g}_$2.sh"
             touch ${exec_path}
             echo "#!/bin/sh" >> ${exec_path}
-            echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${w} -g ${g} -l -b --hemi $2 --no-poisson" >> ${exec_path}
+            echo "/data/user/mcampana/analysis/Blazar_1FLE/BlazarAnalysis.py -w ${w} -g ${g} -l -b --hemi $2 --no-poisson --dataset ps-v4" >> ${exec_path}
 
             sub_path="/scratch/mcampana/job_files/subs/$1/$2/Submit_$1_${w}_${g}_$2.submit"
             touch ${sub_path}

@@ -16,7 +16,7 @@ def get_arrays_SensGamma(namelist):
         f = open(name, "rb")
         dict1 = pickle.load(f)
         f.close()
-
+        
         fx = dict1['flux_nsig']
         fxs.append(fx)
         g = dict1['inj_gamma']
@@ -46,35 +46,42 @@ def get_arrays_Diffsens(namelist):
     return fxs, Es
 
 #Get file name lists (both weightings, and sens or DP)
-eq_snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/poisson/hemisphere/both/weight/equal/Sens*.pkl')
-eq_dnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/poisson/hemisphere/both/weight/equal/Disc*.pkl')
-fx_snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/poisson/hemisphere/both/weight/flux/Sens*.pkl')
-fx_dnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/poisson/hemisphere/both/weight/flux/Disc*.pkl')
+eq3_snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/poisson/hemisphere/both/weight/equal/Sens*10yr*.pkl')
+fx3_snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/poisson/hemisphere/both/weight/flux/Sens*10yr*.pkl')
+eq4_snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/poisson/hemisphere/both/weight/equal/Sens*v4*.pkl')
+fx4_snamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/poisson/hemisphere/both/weight/flux/Sens*v4*.pkl')
+
     
-eq_sens, eq_s_gammas = get_arrays_SensGamma(eq_snamelist)
-eq_disc, eq_d_gammas = get_arrays_SensGamma(eq_dnamelist)
-fx_sens, fx_s_gammas = get_arrays_SensGamma(fx_snamelist)
-fx_disc, fx_d_gammas = get_arrays_SensGamma(fx_dnamelist)
+eq3_sens, eq3_s_gammas = get_arrays_SensGamma(eq3_snamelist)
+fx3_sens, fx3_s_gammas = get_arrays_SensGamma(fx3_snamelist)
+eq4_sens, eq4_s_gammas = get_arrays_SensGamma(eq4_snamelist)
+fx4_sens, fx4_s_gammas = get_arrays_SensGamma(fx4_snamelist)
+
+
+#print('Index', '//', 'Equal weight DP n_s', '//', 'Flux weight DP n_s')
+#for i in range(len(eq_sens)):
+#    print(eq_s_gammas[i], '//', eq_disc[i], '//', fx_disc[i])
 
 def plot_sens_v_gamma():
     
     plt.figure(figsize=(8,6))
-    plt.plot(eq_s_gammas, eq_sens, color='C0', marker='+', label='Sensitivity, Equal')
-    plt.plot(fx_s_gammas, fx_sens, color='C1', marker='+', label='Sensitivity, Flux')
-    plt.plot(eq_d_gammas, eq_disc, color='C0', marker='x', label='DP, Equal', linestyle='--')
-    plt.plot(fx_d_gammas, fx_disc, color='C1', marker='x', label='DP, Flux', linestyle='--')
+    plt.plot(eq3_s_gammas, eq3_sens, color='C0', marker='+', label='Equal, v3.2', linestyle='--')
+    plt.plot(fx3_s_gammas, fx3_sens, color='C0', marker='+', label='Flux, v3.2')
+    plt.plot(eq4_s_gammas, eq4_sens, color='C1', marker='x', label='Equal, v4', linestyle='--')
+    plt.plot(fx4_s_gammas, fx4_sens, color='C1', marker='x', label='Flux, v4')
 
     plt.yscale('log')
 
     plt.ylabel('E^2 dN/dE [TeV /cm^2 /s @ 100TeV]')
     plt.xlabel('gamma')
     
-    plt.ylim(1e-13, 1e-9)
+    plt.ylim(1e-13, 1e-11)
     
     #plt.title()
     plt.legend()
+    plt.title('Sensitivities: Dataset Comparison')
     plt.grid(b=True, which='major', alpha=.7, linestyle=':')
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/SensDisc_v_gamma_possion_{}'.format(dt))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Sens_v_gamma_possion_dataComp_{}'.format(dt))
     plt.close()
     return
 
@@ -103,23 +110,24 @@ def plot_sens_v_gamma():
 #    return
 
 #Get file name lists (both weightings, and sens or DP)
-N_eq_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/north/DiffSens*equal*.pkl')
-N_fx_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/north/DiffSens*flux*.pkl')
+if False:
+    N_eq_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/north/DiffSens*equal*.pkl')
+    N_fx_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/north/DiffSens*flux*.pkl')
 
-S_eq_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/south/DiffSens*equal*.pkl')
-S_fx_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/south/DiffSens*flux*.pkl')
+    S_eq_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/south/DiffSens*equal*.pkl')
+    S_fx_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/south/DiffSens*flux*.pkl')
 
-B_eq_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/both/DiffSens*equal*.pkl')
-B_fx_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/both/DiffSens*flux*.pkl')
+    B_eq_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/both/DiffSens*equal*.pkl')
+    B_fx_dsnamelist = glob('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/hemisphere/both/DiffSens*flux*.pkl')
 
-N_eq_diffsens, N_eq_s_Es = get_arrays_Diffsens(N_eq_dsnamelist)
-N_fx_diffsens, N_fx_s_Es = get_arrays_Diffsens(N_fx_dsnamelist)   
+    N_eq_diffsens, N_eq_s_Es = get_arrays_Diffsens(N_eq_dsnamelist)
+    N_fx_diffsens, N_fx_s_Es = get_arrays_Diffsens(N_fx_dsnamelist)   
 
-S_eq_diffsens, S_eq_s_Es = get_arrays_Diffsens(S_eq_dsnamelist)
-S_fx_diffsens, S_fx_s_Es = get_arrays_Diffsens(S_fx_dsnamelist)   
+    S_eq_diffsens, S_eq_s_Es = get_arrays_Diffsens(S_eq_dsnamelist)
+    S_fx_diffsens, S_fx_s_Es = get_arrays_Diffsens(S_fx_dsnamelist)   
 
-B_eq_diffsens, B_eq_s_Es = get_arrays_Diffsens(B_eq_dsnamelist)
-B_fx_diffsens, B_fx_s_Es = get_arrays_Diffsens(B_fx_dsnamelist)   
+    B_eq_diffsens, B_eq_s_Es = get_arrays_Diffsens(B_eq_dsnamelist)
+    B_fx_diffsens, B_fx_s_Es = get_arrays_Diffsens(B_fx_dsnamelist)   
 
 def plot_diff_sens():
 
