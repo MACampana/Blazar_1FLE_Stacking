@@ -56,8 +56,12 @@ parser.add_argument('-b', '--bias', action='store_true', dest='do_bias_test', he
 parser.add_argument('-i', '--chi2', action='store_true', dest='plot_TSchi2', help='Use this option to plot the TS dist and chi2 fit of loaded trials.')
 parser.add_argument('--diff-sens', action='store_true', dest='diff_sens', help='Use this option to calculate differential sensitvities.')
 parser.add_argument('--hemi', default='both', choices=['both', 'north', 'south'], type=str, dest='hemisphere', help='ONE of both, north, OR south. Hemisphere for sources.')
-parser.add_argument('--no-poisson', action='store_false', dest='poisson', help='Use this option to NOT inject with poisson distribution suring signal trial making.')
+parser.add_argument('--no-poisson', action='store_false', dest='poisson', help='Use this option to NOT inject with poisson distribution during signal trial making.')
 parser.add_argument('--dataset', default='ps-v3p2', choices=['ps-v3p2', 'ps-v4'], type=str, dest='dataset', help='Dataset.')
+parser.add_argument('--ecut', action='store_true', dest='ecut', help='Use this option to set limits on MC energies (then set the limits with --elo and --ehi).')
+parser.add_argument('--elo', default=0.0, type=float, dest='elo', help='Low Energy cutoff for MC.')
+parser.add_argument('--ehi', default=np.inf, type=float, dest='ehi', help='High Energy cutoff for MC.')
+parser.add_argument('--no-bg', action='store_false', dest='do_bg', help='Use this option to NOT perform background trials.')
 
 #Args -> variables
 args = parser.parse_args()
@@ -87,48 +91,59 @@ diff_sens = args.diff_sens
 hemisphere = args.hemisphere
 poisson = args.poisson
 dSetName = args.dataset
+E_cut = args.ecut
+ethresh_high = args.ehi
+ethresh_low = args.elo
+do_bg_trials = args.do_bg
 
 #=========================================================
 #       CATALOG/DATA EXTRACTION
 #=========================================================
 
-print('Loading Fits...')
-#Open Catalog fits file
-fits_1fle = fits.open('/data/user/mcampana/analysis/Blazar_1FLE/1fle.fits')
-#Get Column Names
-cols = fits_1fle[1].data.columns.names
-#Extract Blazars (all, north, south)
-if hemisphere == 'both':
-    b_mask = (fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')
-elif hemisphere == 'north':
-    b_mask = ((fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')) & (fits_1fle[1].data['DEdeg'] > -5.0)
-elif hemisphere == 'south':
-    b_mask = ((fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')) & (fits_1fle[1].data['DEdeg'] <= -5.0)
+#FOR LOADING FITS FILE (NOT currently in use)
+if False:
+    print('Loading Fits...')
+    #Open Catalog fits file
+    fits_1fle = fits.open('/data/user/mcampana/analysis/Blazar_1FLE/1fle.fits')
+    #Get Column Names
+    cols = fits_1fle[1].data.columns.names
+    #Extract Blazars (all, north, south)
+    if hemisphere == 'both':
+        b_mask = (fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')
+    elif hemisphere == 'north':
+        b_mask = ((fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')) & (fits_1fle[1].data['DEdeg'] > -5.0)
+    elif hemisphere == 'south':
+        b_mask = ((fits_1fle[1].data['CLASS1'] == 'bll') | (fits_1fle[1].data['CLASS1'] == 'fsrq')) & (fits_1fle[1].data['DEdeg'] <= -5.0)
 
-blaz_1fle = fits_1fle[1].data[b_mask]
+    blaz_1fle = fits_1fle[1].data[b_mask]
 
-#29 BL LACs -> seems like 2 were changed to FSRQ from paper
-#102 FSRQs -> 2 from BL LAC and 2 from Unclassified from paper ?
-#131 sources total
+    #Make into dictionary
+    data = {}
+    for n in cols:
+        data[n] = blaz_1fle.field(n)
+    #Close Fits file
+    fits_1fle.close()
+    print('Fits closed...')
 
-#Make into dictionary
-data = {}
-for n in cols:
-    data[n] = blaz_1fle.field(n)
-#Close Fits file
-fits_1fle.close()
-print('Fits closed...')
+    print('Considering saving data...')
+    #Save source list with all data as CSV and Text Files
+    if data_save == 'csv':
+        pd.DataFrame.from_dict(data).to_csv('/data/user/mcampana/analysis/Blazar_1FLE/1FLE_Blazars_Data_{}.csv'.format(hemisphere))
+    elif data_save == 'txt':
+        f = open("/data/user/mcampana/analysis/Blazar_1FLE/1FLE_Blazars_Data_{}.txt".format(hemisphere),"w")
+        f.write(str(data))
+        f.close()
+    elif data_save == None:
+        pass
 
-print('Considering saving data...')
-#Save source list with all data as CSV and Text Files
-if data_save == 'csv':
-    pd.DataFrame.from_dict(data).to_csv('/data/user/mcampana/analysis/Blazar_1FLE/1FLE_Blazars_Data_{}.csv'.format(hemisphere))
-elif data_save == 'txt':
-    f = open("/data/user/mcampana/analysis/Blazar_1FLE/1FLE_Blazars_Data_{}.txt".format(hemisphere),"w")
-    f.write(str(data))
-    f.close()
-elif data_save == None:
-    pass
+#FOR LOADING PICKLED DICTIONARY (currently used)
+if True:
+    if hemisphere == 'both':
+        data = pickle.load( open('/data/user/mcampana/analysis/Blazar_1FLE/u1FLE_Blazars_Catalog.pkl', 'rb') )
+    elif hemisphere == 'north':
+        data = pickle.load( open('/data/user/mcampana/analysis/Blazar_1FLE/u1FLE_North_Blazars_Catalog.pkl', 'rb') )
+    elif hemisphere == 'south':
+        data = pickle.load( open('/data/user/mcampana/analysis/Blazar_1FLE/u1FLE_South_Blazars_Catalog.pkl', 'rb') )
 
 #For Weighting
 num_blaz = len(data['Name'])
@@ -141,7 +156,7 @@ if plot_flux_pdf:
     plt.hist(data['EF30-100'], bins='auto', histtype='step', linewidth=2)
     plt.xlabel("Energy Flux from 30-100 MeV [erg /cm^2 /s]")
     plt.ylabel("Counts")
-    plt.title("Energy Flux PDF for 1FLE Blazars")
+    plt.title("Energy Flux PDF for u1FLE Blazars")
     #plt.semilogy()
     plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/EnergyFlux_30-100MeV_PDF_{}_{}.png'.format(hemisphere,today_date))
     plt.close()
@@ -157,26 +172,42 @@ else:
     pDirName = 'nopoisson'
     
 #********************Data selection***********************
+# Currently using PS Tracks v3p2, because v4 is not fully ready
+
 print('Getting data selection...')
 
 if dSetName == 'ps-v3p2': #Previously calling 10yrPStracks
     selection = cy.selections.PSDataSpecs.ps_10yr
-    trials_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/trials')
+    
+    if not E_cut:
+        trials_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/trials_u1FLE')
+    elif E_cut:
+        
+        # --------Setting Energy Range for truncated MC energies--------
+        print('Truncating MC energy range to {}-{} GeV'.format(ethresh_low, ethresh_high))
+        
+        trials_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/trials_Erange_{}-{}'.format(ethresh_low, ethresh_high))
+        
+    version = 'version-003-p02'
     
 elif dSetName == 'ps-v4':
     selection = cy.selections.PSDataSpecs.ps_v4
     trials_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/trials_psv4')
+    version = 'version-004-p00'
 
 print('Getting analysis arrays...')
 #Create analysis with data selection (saved in working dir)
 #ana = cy.get_analysis(cy.selections.repo, selection)
 #ana.save('./')
 ana_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/subanalyses/{}'.format(dSetName))
-ana = cy.get_analysis(cy.selections.repo, selection, dir=ana_dir)
+ana = cy.get_analysis(cy.selections.repo, version, selection, dir=ana_dir)
 
 #Trial save and load directories
 sig_dir = cy.utils.ensure_dir('{}/sig'.format(trials_dir))
-bg_dir = cy.utils.ensure_dir('{}/bg'.format(trials_dir))
+if not E_cut:
+    bg_dir = cy.utils.ensure_dir('{}/bg'.format(trials_dir))
+elif E_cut:
+    bg_dir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/trials_u1FLE/bg')
 
 #=========================================================
 #       FUNCTION DEFINITIONS 
@@ -188,7 +219,7 @@ def bg_trials():
     trials = tr.get_many_fits(num_trials, seed=s)
     #Save Trials to numpy array file
     dir_ = cy.utils.ensure_dir('{}/hemisphere/{}/weight/{}/gamma/{}'.format(bg_dir,h,w,g))
-    save_trials_fname = '{}/BG_{}trials_1FLEblazars_seed{}_{}.npy'.format(dir_, num_trials, s, today_date)
+    save_trials_fname = '{}/BG_{}trials_u1FLEblazars_seed{}_{}.npy'.format(dir_, num_trials, s, today_date)
     np.save(save_trials_fname, trials.as_array)
     print("BG Trials saved ->", save_trials_fname)
     
@@ -200,7 +231,7 @@ def sig_trials():
     trials = tr.get_many_fits(num_trials/2, n_sig, seed=s, poisson=poisson)
     #Save Trials to numpy array file    
     dir_ = cy.utils.ensure_dir('{}/{}/hemisphere/{}/weight/{}/gamma/{}/nsig/{}'.format(sig_dir,pDirName,h,w,g,n_sig))
-    save_trials_fname = '{}/SIG_{}trials_1FLEblazars_seed{}_{}.npy'.format(dir_, int(num_trials/2), s, today_date)
+    save_trials_fname = '{}/SIG_{}trials_u1FLEblazars_seed{}_{}.npy'.format(dir_, int(num_trials/2), s, today_date)
     np.save(save_trials_fname, trials.as_array)
     print("Signal Trials saved ->", save_trials_fname)
       
@@ -226,7 +257,7 @@ def TSchi2():
     ax.set_title('{} Weighted, {} Hemisphere(s)'.format(w.capitalize(), h.capitalize()))
 
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}trials_{}weighting_{}hemi_{}_{}_1FLEblazars_{}.png'.format(b.n_total, w, h, pDirName, dSetName, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}trials_{}weighting_{}hemi_{}_{}_u1FLEblazars_{}.png'.format(b.n_total, w, h, pDirName, dSetName, today_date))
     plt.close()
     
     return
@@ -265,7 +296,7 @@ def multi_TSchi2():
     for ax in aaxs[:,0]:
         ax.set_ylabel('trials per bin')
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}weighting_{}hemi_{}_{}_1FLEblazars_{}.png'.format(w,h, pDirName, dSetName, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/Chi2TS_{}weighting_{}hemi_{}_{}_u1FLEblazars_{}.png'.format(w,h, pDirName, dSetName, today_date))
     plt.close()
     
     return
@@ -317,14 +348,16 @@ def get_n_sig(beta=0.9, nsigma=None):
     
     sensSaveDir = cy.utils.ensure_dir('/data/user/mcampana/analysis/Blazar_1FLE/sens_disc/{}/hemisphere/{}/weight/{}'.format(pDirName, h, w))    
     if diff_sens:
-        save_nsig_fname = '{}/Diff{}Info_gamma{}_Emin{}_{}_1FLEblazars_{}.pkl'.format(sensSaveDir, kind, g, np.round(E_min,1), dSetName, today_date)
+        save_nsig_fname = '{}/Diff{}Info_gamma{}_Emin{}_Emax{}_{}_u1FLEblazars_{}.pkl'.format(sensSaveDir, kind, g, np.round(E_min,1), np.round(E_max,1), dSetName, today_date)
+    elif E_cut:
+        save_nsig_fname = '{}/{}Info_gamma{}_Erange_{}-{}_{}_u1FLEblazars_{}.pkl'.format(sensSaveDir, kind, g, ethresh_low, ethresh_high, dSetName, today_date) 
     else:
-        save_nsig_fname = '{}/{}Info_gamma{}_{}_1FLEblazars_{}.pkl'.format(sensSaveDir, kind, g, dSetName, today_date)
+        save_nsig_fname = '{}/{}Info_gamma{}_{}_u1FLEblazars_{}.pkl'.format(sensSaveDir, kind, g, dSetName, today_date) 
     
     f = open(save_nsig_fname, "wb")
-    pickle.dump(result['info'],f)
+    pickle.dump(result,f)
     f.close()
-    print("{} info saved ->".format(kind), save_nsig_fname)
+    print("{} dict saved ->".format(kind), save_nsig_fname)
     
     # return flux
     return flux_nsig
@@ -340,7 +373,7 @@ def plot_sensdisc():
     ax.set_title('{} weighting'.format(w))
     ax.grid()
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/SensDisc_{}weighting_{}hemi_{}_{}_1FLEblazars_{}.png'.format(w,h,pDirName, dSetName, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/SensDisc_{}weighting_{}hemi_{}_{}_u1FLEblazars_{}.png'.format(w,h,pDirName, dSetName, today_date))
     plt.close()
     
     return
@@ -348,7 +381,7 @@ def plot_sensdisc():
 #Doing Bias tests:
 def bias_test():
     #Making new trials...
-    n_sigs = np.r_[:201:20]
+    n_sigs = np.r_[:201:10]
     trials = [tr.get_many_fits(100, n_sig=n_sig, logging=False, seed=n_sig, poisson=False) for n_sig in n_sigs]
         
     for (n_sig, t) in zip(n_sigs, trials):
@@ -387,7 +420,7 @@ def bias_test():
 
     plt.title('Gamma={}, {} Weighted'.format(g,w.capitalize()))
     plt.tight_layout()
-    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/BiasTest_{}weighting_gamma{}_{}hemi_{}_{}_1FLEblazars_{}.png'.format(w, g, hemisphere, pDirName, dSetName, today_date))
+    plt.savefig('/data/user/mcampana/analysis/Blazar_1FLE/plots/BiasTest_{}weighting_gamma{}_{}hemi_{}_{}_u1FLEblazars_{}.png'.format(w, g, hemisphere, pDirName, dSetName, today_date))
     plt.close()
     
     return
@@ -410,11 +443,21 @@ if do_trials:
         
         for g in gamma:
             #Get Trials Runner
-            tr = cy.get_trial_runner(src=srcs, ana=ana, flux=cy.hyp.PowerLawFlux(g), mp_cpus=cpus)
+            
+            #Set signal flux (for injections)
+            #   Power law from gamma, with or without some cutoff (for determining sensitivity changes and energy range)
+            if not E_cut:
+                flux = cy.hyp.PowerLawFlux(g)
+            elif E_cut:
+                flux = cy.hyp.PowerLawFlux(g, energy_range=(ethresh_low, ethresh_high))
+                
+            tr = cy.get_trial_runner(src=srcs, ana=ana, flux=flux, mp_cpus=cpus)
             
             for s in seed:
                 print('Doing {} BG trials for {} data, {} weight, gamma = {}, seed = {} ...'.format(num_trials,dSetName,w,g,s))
-                bg_trials()  
+                
+                if do_bg_trials:
+                    bg_trials()
                 
                 if w == 'equal':
                     if g == 1.75: 
@@ -494,10 +537,20 @@ elif load_trials:
                 
                 if diff_sens:
                     
-                    logE_range = np.arange(2.0, 8.1, .5) #log (E/ 1 GeV)
+                    if w == 'equal':
+                        #Energy cutoffs for 90% sens range determined separately (in GeV to the nearest 100 GeV)
+                        E_low_cut = 14800.0
+                        E_high_cut = 14797300.0
+                    elif w == 'flux':
+                        #Energy cutoffs for 90% sens range determined separately (in GeV to the nearest 100 GeV)
+                        E_low_cut = 10500.0
+                        E_high_cut = 12188900.0
+                        
+                    #logE_range = np.logspace(np.log10(E_low_cut), np.log10(E_high_cut), 21) #n bins in log (E/ 1 GeV)
+                    logE_range = np.logspace(4, 7.5, 15)    #E range rounded for plotting conventions
                     for i in range(len(logE_range[:-1])):
-                        E_min = 10**(logE_range[i])
-                        E_max = 10**(logE_range[i+1])
+                        E_min = logE_range[i]
+                        E_max = logE_range[i+1]
                         
                         ref_E = E_min * 10**-3         #in TeV
                         flux = cy.hyp.PowerLawFlux(gamma=g, energy_range=(E_min, E_max))
@@ -511,7 +564,10 @@ elif load_trials:
                     
                 else:
                     
-                    flux = cy.hyp.PowerLawFlux(g)
+                    if not E_cut:
+                        flux = cy.hyp.PowerLawFlux(g)
+                    elif E_cut:
+                        flux = cy.hyp.PowerLawFlux(g, energy_range=(ethresh_low, ethresh_high))
                 
                     print('Calculating Sensitivity for: {} data, {} Hemisphere, {} Weighting, and Gamma={} ...'.format(dSetName,h,w,g))
                     tr = cy.get_trial_runner(src=srcs, ana=ana, flux=flux, mp_cpus=cpus, update_bg=True)

@@ -6,11 +6,12 @@ import astropy.io.fits as fits
 import healpy as hp
 import matplotlib.pyplot as plt
 import pandas as pd
+import pickle as pkl
 
-data = pd.read_csv('./1FLE_Blazars_Data.csv')
-RAdeg = data['RAdeg'].to_numpy()
-DEdeg = data['DEdeg'].to_numpy()
-Flux = data['EF30-100'].to_numpy()
+data = pkl.load( open('./u1FLE_Blazars_Catalog.pkl', 'rb') )
+RAdeg = np.array(data['RAdeg'])
+DEdeg = np.array(data['DEdeg'])
+Flux = np.array(data['EF30-100'])
 
 coord = 'C'
 rot = (-180,0,0)
@@ -32,5 +33,5 @@ hp.projtext(np.pi/2,2.0*np.pi - .001,'360', size='large', ha='right', coord=coor
 hp.projtext(np.pi/2,0,'0', size='large', ha='left', coord=coord)
 hp.projtext(np.pi,0,'-90', size='large', ha='center', va='top', coord=coord)
 
-plt.savefig('./plots/1FLE_FluxScaled_SkyMap.png', bbox_inches='tight')
+plt.savefig('./plots/u1FLE_FluxScaled_SkyMap.png', bbox_inches='tight')
 plt.close()
