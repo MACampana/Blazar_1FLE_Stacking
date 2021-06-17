@@ -218,7 +218,7 @@ def bg_trials():
     
     trials = tr.get_many_fits(num_trials, seed=s)
     #Save Trials to numpy array file
-    dir_ = cy.utils.ensure_dir('{}/hemisphere/{}/weight/{}/gamma/{}'.format(bg_dir,h,w,g))
+    dir_ = cy.utils.ensure_dir('{}/hemisphere/{}/weight/{}'.format(bg_dir,h,w))
     save_trials_fname = '{}/BG_{}trials_u1FLEblazars_seed{}_{}.npy'.format(dir_, num_trials, s, today_date)
     np.save(save_trials_fname, trials.as_array)
     print("BG Trials saved ->", save_trials_fname)
@@ -308,7 +308,7 @@ def ndarray_to_Chi2TSD(tri):
 def get_n_sig(beta=0.9, nsigma=None):
     # get signal trials, background distribution, and trial runner
     sig_trials = cy.bk.get_best(sig, pDirName, 'hemisphere', h, 'weight', w, 'gamma', g, 'nsig')
-    b = cy.bk.get_best(bg_chi2, 'hemisphere', h, 'weight', w, 'gamma', g)
+    b = cy.bk.get_best(bg_chi2, 'hemisphere', h, 'weight', w)
     # determine ts threshold
     if nsigma is not None:
         ts = b.isf_nsigma(nsigma)
@@ -382,7 +382,7 @@ def plot_sensdisc():
 def bias_test():
     #Making new trials...
     n_sigs = np.r_[:201:10]
-    trials = [tr.get_many_fits(100, n_sig=n_sig, logging=False, seed=n_sig, poisson=False) for n_sig in n_sigs]
+    trials = [tr.get_many_fits(1000, n_sig=n_sig, logging=False, seed=n_sig, poisson=False) for n_sig in n_sigs]
         
     for (n_sig, t) in zip(n_sigs, trials):
         t['ntrue'] = np.repeat(n_sig, len(t))
@@ -457,7 +457,8 @@ if do_trials:
                 print('Doing {} BG trials for {} data, {} weight, gamma = {}, seed = {} ...'.format(num_trials,dSetName,w,g,s))
                 
                 if do_bg_trials:
-                    bg_trials()
+                    if g == 2.0:
+                        bg_trials()
                 
                 if w == 'equal':
                     if g == 1.75: 

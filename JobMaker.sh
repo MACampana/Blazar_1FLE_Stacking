@@ -3,8 +3,9 @@
 #Arguments 
 #$1 = Type of job (trials, erange-trials, sensdisc, erange-sens, diffsens, bias)
 #$2 = hemisphere  (both, north, south)
-#$3 = low or high cutoff for erange jobs (low, high)
-#$4 = energy in GeV for erange jobs (number)
+#$3 = low or high cutoff for erange jobs (low, high, both)
+#$4 = energy in GeV for erange jobs (number). Lower limit if $3=both.
+#$5 = high energy limit for $3=both
 
 mkdir '/scratch/mcampana/'
 
@@ -35,7 +36,7 @@ if [ $1 == 'trials' ]; then
     dag_path="/scratch/mcampana/job_files/dags/$1/$2/Dagman_$1_weights_gammas_$2_$3$4.dag"
     touch ${dag_path}
     
-    COUNTER=({1..100..1})
+    COUNTER=({1..1000..1})
     for w in ${weights[@]}; do
         for g in ${gammas[@]}; do
             for c in ${COUNTER[@]}; do
@@ -251,5 +252,5 @@ fi
 runThis="/scratch/mcampana/job_files/SubmitMyJobs_$1_$2_$3$4.sh"
 touch ${runThis}
 echo "#!/bin/sh" >> ${runThis}
-echo "condor_submit_dag ${dag_path}" >> ${runThis}
+echo "condor_submit_dag -maxjobs 500 ${dag_path}" >> ${runThis}
 
